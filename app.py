@@ -1099,7 +1099,7 @@ def modulo(name):
 
     botones = ""
 
-    for option in modulo_actual["opciones"]:
+       for option in modulo_actual["opciones"]:
         botones += f"""
         <div class="card" style="
             margin:0;
@@ -1115,10 +1115,17 @@ def modulo(name):
                 Función disponible para continuar el desarrollo.
             </p>
 
-            <button type="button"
-                    onclick="alert('Módulo: {option}')">
+            <a href="/modulo/{name}/{option}"
+               style="
+                   display:inline-block;
+                   padding:10px 18px;
+                   background:#111827;
+                   color:white;
+                   text-decoration:none;
+                   border-radius:6px;
+               ">
                 Abrir
-            </button>
+            </a>
 
         </div>
         """
