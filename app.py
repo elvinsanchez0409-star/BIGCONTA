@@ -1122,8 +1122,7 @@ for option in modulo_actual["opciones"]:
 
     </div>
     """
-
-     return shell(
+return shell(
         f"""
         <h1>
             {modulo_actual["icono"]}
