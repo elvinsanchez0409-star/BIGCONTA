@@ -1101,7 +1101,7 @@ def modulo(name):
     botones = ""
 
     for opcion in modulo_actual["opciones"]:
-   for opcion in modulo_actual["opciones"]:
+  
     botones += f"""
         <div class="card" style="
             margin:0;
