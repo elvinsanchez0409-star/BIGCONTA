@@ -956,37 +956,203 @@ def ver_factura(invoice_id):
 # =========================================================
 
 @app.route("/modulo/<name>")
+@app.route("/modulo/<name>")
 def modulo(name):
 
-    titles = {
-        "contabilidad": "Contabilidad",
-        "compras": "Compras",
-        "cxc": "Cuentas por Cobrar",
-        "cxp": "Cuentas por Pagar",
-        "inventario": "Inventario",
-        "bancos": "Caja y Bancos",
-        "impuestos": "IVA y Retenciones",
-        "nomina": "Nómina",
-        "reportes": "Reportes"
+    modulos = {
+
+        "contabilidad": {
+            "titulo": "Contabilidad",
+            "icono": "📚",
+            "descripcion": "Gestión contable integral de la empresa.",
+            "opciones": [
+                "Plan de cuentas",
+                "Asientos contables",
+                "Libro diario",
+                "Libro mayor",
+                "Balance de comprobación"
+            ]
+        },
+
+        "ventas": {
+            "titulo": "Ventas y Facturación",
+            "icono": "🧾",
+            "descripcion": "Gestión de clientes, ventas y facturación.",
+            "opciones": [
+                "Nueva factura",
+                "Clientes",
+                "Facturas emitidas",
+                "Notas de crédito",
+                "Reporte de ventas"
+            ]
+        },
+
+        "compras": {
+            "titulo": "Compras",
+            "icono": "🛒",
+            "descripcion": "Control de compras y proveedores.",
+            "opciones": [
+                "Nueva compra",
+                "Proveedores",
+                "Compras registradas",
+                "Notas de débito",
+                "Reporte de compras"
+            ]
+        },
+
+        "cxc": {
+            "titulo": "Cuentas por Cobrar",
+            "icono": "💰",
+            "descripcion": "Control de cuentas pendientes de cobro.",
+            "opciones": [
+                "Clientes pendientes",
+                "Registrar cobro",
+                "Cartera vencida",
+                "Estado de cuenta",
+                "Reporte de CxC"
+            ]
+        },
+
+        "cxp": {
+            "titulo": "Cuentas por Pagar",
+            "icono": "💳",
+            "descripcion": "Control de obligaciones y pagos a proveedores.",
+            "opciones": [
+                "Proveedores pendientes",
+                "Registrar pago",
+                "Cuentas vencidas",
+                "Estado de cuenta",
+                "Reporte de CxP"
+            ]
+        },
+
+        "inventario": {
+            "titulo": "Inventario",
+            "icono": "📦",
+            "descripcion": "Control de productos, existencias y movimientos.",
+            "opciones": [
+                "Productos",
+                "Entradas",
+                "Salidas",
+                "Ajustes de inventario",
+                "Kardex"
+            ]
+        },
+
+        "bancos": {
+            "titulo": "Caja y Bancos",
+            "icono": "🏦",
+            "descripcion": "Control de caja, bancos y movimientos financieros.",
+            "opciones": [
+                "Cuentas bancarias",
+                "Movimientos",
+                "Ingresos",
+                "Egresos",
+                "Conciliación bancaria"
+            ]
+        },
+
+        "impuestos": {
+            "titulo": "IVA y Retenciones",
+            "icono": "🇪🇨",
+            "descripcion": "Gestión tributaria y control de impuestos.",
+            "opciones": [
+                "IVA ventas",
+                "IVA compras",
+                "Retenciones",
+                "ATS",
+                "Reportes tributarios"
+            ]
+        },
+
+        "nomina": {
+            "titulo": "Nómina",
+            "icono": "👥",
+            "descripcion": "Administración de empleados y procesos de nómina.",
+            "opciones": [
+                "Empleados",
+                "Sueldos",
+                "Roles de pago",
+                "Aportes",
+                "Reportes de nómina"
+            ]
+        },
+
+        "reportes": {
+            "titulo": "Reportes",
+            "icono": "📈",
+            "descripcion": "Reportes financieros y administrativos de BIGCONTA.",
+            "opciones": [
+                "Estado de resultados",
+                "Balance general",
+                "Flujo de efectivo",
+                "Ventas",
+                "Compras",
+                "Inventario"
+            ]
+        }
     }
+
+    modulo_actual = modulos.get(name)
+
+    if not modulo_actual:
+        return redirect("/")
+
+    botones = ""
+
+    for opcion in modulo_actual["opciones"]:
+        botones += f"""
+        <div class="card" style="
+            margin:0;
+            cursor:pointer;
+            border:1px solid #e5e7eb;
+            transition:0.2s;
+        "
+        onmouseover="this.style.transform='translateY(-3px)'"
+        onmouseout="this.style.transform='translateY(0)'">
+
+            <h3>{opcion}</h3>
+
+            <p style="color:#6b7280;">
+                Función disponible para continuar el desarrollo.
+            </p>
+
+            <button type="button">
+                Abrir
+            </button>
+
+        </div>
+        """
 
     return shell(
         f"""
-        <h1>{titles.get(name, 'Módulo')}</h1>
+        <h1>
+            {modulo_actual["icono"]}
+            {modulo_actual["titulo"]}
+        </h1>
 
         <div class="card">
 
-            <h2>Próximamente</h2>
+            <h2>Módulo activo</h2>
 
             <p>
-            Este módulo será conectado progresivamente
-            con el sistema contable BIGCONTA.
+                {modulo_actual["descripcion"]}
             </p>
+
+            <p>
+                <strong>BIGCONTA V1</strong> —
+                módulo habilitado correctamente.
+            </p>
+
+        </div>
+
+        <div class="grid">
+
+            {botones}
 
         </div>
         """
     )
-
 
 # =========================================================
 # USUARIOS
