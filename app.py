@@ -1097,9 +1097,9 @@ def modulo(name):
     if not modulo_actual:
         return redirect("/")
 
-    botones = ""
+        botones = ""
 
-       for option in modulo_actual["opciones"]:
+    for option in modulo_actual["opciones"]:
         botones += f"""
         <div class="card" style="
             margin:0;
@@ -1129,7 +1129,6 @@ def modulo(name):
 
         </div>
         """
-
     return shell(
         f"""
         <h1>
