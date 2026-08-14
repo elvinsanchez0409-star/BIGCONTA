@@ -1102,7 +1102,7 @@ def modulo(name):
 
     for opcion in modulo_actual["opciones"]:
   
-    botones += f"""
+        botones += f"""
         <div class="card" style="
             margin:0;
             cursor:pointer;
