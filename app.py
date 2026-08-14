@@ -1097,7 +1097,7 @@ def modulo(name):
     if not modulo_actual:
         return redirect("/")
 
-        botones = ""
+           botones = ""
 
     for option in modulo_actual["opciones"]:
         botones += f"""
