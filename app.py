@@ -956,7 +956,6 @@ def ver_factura(invoice_id):
 # =========================================================
 
 @app.route("/modulo/<name>")
-@app.route("/modulo/<name>")
 def modulo(name):
 
     modulos = {
@@ -1098,30 +1097,32 @@ def modulo(name):
     if not modulo_actual:
         return redirect("/")
 
-botones = ""
+    botones = ""
 
-for option in modulo_actual["opciones"]:
-    botones += f"""
-    <div class="card" style="
-        margin:0;
-        border:1px solid #e5e7eb;
-        transition:0.2s;
-    "
-    onmouseover="this.style.transform='translateY(-3px)'"
-    onmouseout="this.style.transform='translateY(0)'">
+    for option in modulo_actual["opciones"]:
+        botones += f"""
+        <div class="card" style="
+            margin:0;
+            border:1px solid #e5e7eb;
+            transition:0.2s;
+        "
+        onmouseover="this.style.transform='translateY(-3px)'"
+        onmouseout="this.style.transform='translateY(0)'">
 
-        <h3>{option}</h3>
+            <h3>{option}</h3>
 
-        <p style="color:#6b7280;">
-            Función disponible para continuar el desarrollo.
-        </p>
+            <p style="color:#6b7280;">
+                Función disponible para continuar el desarrollo.
+            </p>
 
-        <button type="button" onclick="alert('Módulo: {option}')">
-            Abrir
-        </button>
+            <button type="button"
+                    onclick="alert('Módulo: {option}')">
+                Abrir
+            </button>
 
-    </div>
-    """
+        </div>
+        """
+
     return shell(
         f"""
         <h1>
@@ -1145,12 +1146,15 @@ for option in modulo_actual["opciones"]:
         </div>
 
         <div class="grid">
-
             {botones}
-
         </div>
         """
     )
+
+
+# =========================================================
+# USUARIOS
+# =========================================================
 
 # =========================================================
 # USUARIOS
