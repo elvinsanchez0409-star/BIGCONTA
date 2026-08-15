@@ -1227,6 +1227,7 @@ def productos():
         return redirect("/login")
 
     msg = ""
+    error = ""
 
     if request.method == "POST":
 
@@ -1236,6 +1237,9 @@ def productos():
 
             with engine.begin() as db:
 
+                # -----------------------------------------
+                # CREAR PRODUCTO
+                # -----------------------------------------
                 if accion == "crear":
 
                     next_id = (
@@ -1310,16 +1314,43 @@ def productos():
                         }
                     )
 
-                    msg = "Producto registrado correctamente."
+                    return redirect(
+                        "/modulo/inventario/Productos"
+                    )
 
-            if accion == "crear":
-                return redirect(
-                    "/modulo/inventario/Productos"
-                )
+
+                # -----------------------------------------
+                # DESACTIVAR PRODUCTO
+                # -----------------------------------------
+                elif accion == "desactivar":
+
+                    product_id = int(
+                        request.form["product_id"]
+                    )
+
+                    db.execute(
+                        text("""
+                            UPDATE products
+                            SET active=FALSE
+                            WHERE id=:id
+                        """),
+                        {
+                            "id": product_id
+                        }
+                    )
+
+                    return redirect(
+                        "/modulo/inventario/Productos"
+                    )
 
         except Exception as e:
 
-            msg = f"Error al registrar producto: {e}"
+            error = str(e)
+
+
+    # ---------------------------------------------
+    # PRODUCTOS ACTIVOS
+    # ---------------------------------------------
 
     with engine.begin() as db:
 
@@ -1332,58 +1363,155 @@ def productos():
             """)
         ).mappings().all()
 
+
     rows = ""
 
     for p in products:
 
-        estado = (
-            "<span style='color:#dc2626;font-weight:bold'>"
-            "Stock bajo"
-            "</span>"
-            if float(p["stock"]) <= float(p["min_stock"])
-            else
-            "<span style='color:#16a34a;font-weight:bold'>"
-            "Normal"
-            "</span>"
-        )
+        stock = float(p["stock"])
+        min_stock = float(p["min_stock"])
+
+        if stock <= min_stock:
+
+            estado = """
+            <span style="
+                color:#dc2626;
+                font-weight:bold;
+            ">
+                ⚠ Stock bajo
+            </span>
+            """
+
+        else:
+
+            estado = """
+            <span style="
+                color:#16a34a;
+                font-weight:bold;
+            ">
+                ✓ Normal
+            </span>
+            """
 
         rows += f"""
         <tr>
 
-            <td>{p["code"]}</td>
+            <td>
+                {p["code"]}
+            </td>
 
-            <td>{p["name"]}</td>
+            <td>
+                <strong>{p["name"]}</strong>
+            </td>
 
-            <td>{p["category"] or ""}</td>
+            <td>
+                {p["category"] or ""}
+            </td>
 
-            <td>{p["unit"]}</td>
+            <td>
+                {p["unit"]}
+            </td>
 
-            <td>${float(p["purchase_price"]):,.2f}</td>
+            <td>
+                ${float(p["purchase_price"]):,.2f}
+            </td>
 
-            <td>${float(p["sale_price"]):,.2f}</td>
+            <td>
+                ${float(p["sale_price"]):,.2f}
+            </td>
 
-            <td>{float(p["stock"]):,.2f}</td>
+            <td>
+                {stock:,.2f}
+            </td>
 
-            <td>{float(p["min_stock"]):,.2f}</td>
+            <td>
+                {min_stock:,.2f}
+            </td>
 
-            <td>{estado}</td>
+            <td>
+                {estado}
+            </td>
+
+            <td>
+
+                <a
+                    class="btn"
+                    href="/modulo/inventario/Productos/editar/{p["id"]}"
+                >
+                    ✏️ Editar
+                </a>
+
+                <form
+                    method="post"
+                    style="
+                        display:inline;
+                        margin-left:5px;
+                    "
+                    onsubmit="
+                        return confirm(
+                            '¿Deseas desactivar este producto?'
+                        );
+                    "
+                >
+
+                    <input
+                        type="hidden"
+                        name="accion"
+                        value="desactivar"
+                    >
+
+                    <input
+                        type="hidden"
+                        name="product_id"
+                        value="{p["id"]}"
+                    >
+
+                    <button
+                        type="submit"
+                        style="
+                            background:#dc2626;
+                        "
+                    >
+                        🗑️ Desactivar
+                    </button>
+
+                </form>
+
+            </td>
 
         </tr>
         """
+
+
+    mensaje_html = ""
+
+    if msg:
+
+        mensaje_html = f"""
+        <div class="success">
+            {msg}
+        </div>
+        """
+
+    if error:
+
+        mensaje_html = f"""
+        <div class="warning">
+            Error: {error}
+        </div>
+        """
+
 
     return shell(f"""
 
     <h1>📦 Productos</h1>
 
+
     <div class="card">
 
         <h2>Nuevo producto</h2>
 
-        {(
-            f'<div class="success">{msg}</div>'
-            if msg
-            else ""
-        )}
+        {mensaje_html}
 
         <form method="post">
 
@@ -1396,42 +1524,60 @@ def productos():
             <div class="grid">
 
                 <div>
+
                     <label>Código</label>
+
                     <input
                         name="code"
                         placeholder="Código del producto"
                         required
                     >
+
                 </div>
 
+
                 <div>
+
                     <label>Nombre</label>
+
                     <input
                         name="name"
                         placeholder="Nombre del producto"
                         required
                     >
+
                 </div>
 
+
                 <div>
+
                     <label>Categoría</label>
+
                     <input
                         name="category"
                         placeholder="Categoría"
                     >
+
                 </div>
 
+
                 <div>
+
                     <label>Unidad</label>
+
                     <input
                         name="unit"
                         value="Unidad"
                         placeholder="Unidad"
                     >
+
                 </div>
 
+
                 <div>
+
                     <label>Precio de compra</label>
+
                     <input
                         name="purchase_price"
                         type="number"
@@ -1439,10 +1585,14 @@ def productos():
                         min="0"
                         value="0"
                     >
+
                 </div>
 
+
                 <div>
+
                     <label>Precio de venta</label>
+
                     <input
                         name="sale_price"
                         type="number"
@@ -1450,10 +1600,14 @@ def productos():
                         min="0"
                         value="0"
                     >
+
                 </div>
 
+
                 <div>
+
                     <label>Stock inicial</label>
+
                     <input
                         name="stock"
                         type="number"
@@ -1461,10 +1615,14 @@ def productos():
                         min="0"
                         value="0"
                     >
+
                 </div>
 
+
                 <div>
+
                     <label>Stock mínimo</label>
+
                     <input
                         name="min_stock"
                         type="number"
@@ -1472,9 +1630,11 @@ def productos():
                         min="0"
                         value="0"
                     >
+
                 </div>
 
             </div>
+
 
             <br>
 
@@ -1491,25 +1651,44 @@ def productos():
 
         <h2>Productos registrados</h2>
 
-        <table>
+        <div style="
+            overflow-x:auto;
+        ">
 
-            <tr>
-                <th>Código</th>
-                <th>Producto</th>
-                <th>Categoría</th>
-                <th>Unidad</th>
-                <th>Compra</th>
-                <th>Venta</th>
-                <th>Stock</th>
-                <th>Mínimo</th>
-                <th>Estado</th>
-            </tr>
+            <table>
 
-            {rows}
+                <tr>
 
-        </table>
+                    <th>Código</th>
+
+                    <th>Producto</th>
+
+                    <th>Categoría</th>
+
+                    <th>Unidad</th>
+
+                    <th>Compra</th>
+
+                    <th>Venta</th>
+
+                    <th>Stock</th>
+
+                    <th>Mínimo</th>
+
+                    <th>Estado</th>
+
+                    <th>Acciones</th>
+
+                </tr>
+
+                {rows}
+
+            </table>
+
+        </div>
 
     </div>
+
 
     <div class="card">
 
@@ -1519,6 +1698,286 @@ def productos():
         >
             ← Volver a Inventario
         </a>
+
+    </div>
+
+    """)
+
+
+
+# =========================================================
+# EDITAR PRODUCTO
+# =========================================================
+
+@app.route(
+    "/modulo/inventario/Productos/editar/<int:product_id>",
+    methods=["GET", "POST"]
+)
+def editar_producto(product_id):
+
+    if "user_id" not in session:
+        return redirect("/login")
+
+
+    error = ""
+
+
+    if request.method == "POST":
+
+        try:
+
+            with engine.begin() as db:
+
+                db.execute(
+                    text("""
+                        UPDATE products
+                        SET
+                            code=:code,
+                            name=:name,
+                            category=:category,
+                            unit=:unit,
+                            purchase_price=:purchase_price,
+                            sale_price=:sale_price,
+                            stock=:stock,
+                            min_stock=:min_stock
+                        WHERE id=:id
+                    """),
+                    {
+                        "id": product_id,
+
+                        "code": request.form[
+                            "code"
+                        ].strip(),
+
+                        "name": request.form[
+                            "name"
+                        ].strip(),
+
+                        "category": request.form.get(
+                            "category", ""
+                        ).strip(),
+
+                        "unit": request.form.get(
+                            "unit", "Unidad"
+                        ).strip(),
+
+                        "purchase_price": float(
+                            request.form.get(
+                                "purchase_price", 0
+                            ) or 0
+                        ),
+
+                        "sale_price": float(
+                            request.form.get(
+                                "sale_price", 0
+                            ) or 0
+                        ),
+
+                        "stock": float(
+                            request.form.get(
+                                "stock", 0
+                            ) or 0
+                        ),
+
+                        "min_stock": float(
+                            request.form.get(
+                                "min_stock", 0
+                            ) or 0
+                        )
+                    }
+                )
+
+            return redirect(
+                "/modulo/inventario/Productos"
+            )
+
+
+        except Exception as e:
+
+            error = str(e)
+
+
+    with engine.begin() as db:
+
+        product = db.execute(
+            text("""
+                SELECT *
+                FROM products
+                WHERE id=:id
+            """),
+            {
+                "id": product_id
+            }
+        ).mappings().first()
+
+
+    if not product:
+
+        return redirect(
+            "/modulo/inventario/Productos"
+        )
+
+
+    error_html = ""
+
+    if error:
+
+        error_html = f"""
+        <div class="warning">
+            Error: {error}
+        </div>
+        """
+
+
+    return shell(f"""
+
+    <h1>✏️ Editar producto</h1>
+
+
+    <div class="card">
+
+        <h2>
+            Editar: {product["name"]}
+        </h2>
+
+        {error_html}
+
+
+        <form method="post">
+
+            <div class="grid">
+
+                <div>
+
+                    <label>Código</label>
+
+                    <input
+                        name="code"
+                        value="{product["code"]}"
+                        required
+                    >
+
+                </div>
+
+
+                <div>
+
+                    <label>Nombre</label>
+
+                    <input
+                        name="name"
+                        value="{product["name"]}"
+                        required
+                    >
+
+                </div>
+
+
+                <div>
+
+                    <label>Categoría</label>
+
+                    <input
+                        name="category"
+                        value="{product["category"] or ""}"
+                    >
+
+                </div>
+
+
+                <div>
+
+                    <label>Unidad</label>
+
+                    <input
+                        name="unit"
+                        value="{product["unit"]}"
+                    >
+
+                </div>
+
+
+                <div>
+
+                    <label>Precio de compra</label>
+
+                    <input
+                        name="purchase_price"
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value="{float(product["purchase_price"]):.2f}"
+                    >
+
+                </div>
+
+
+                <div>
+
+                    <label>Precio de venta</label>
+
+                    <input
+                        name="sale_price"
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value="{float(product["sale_price"]):.2f}"
+                    >
+
+                </div>
+
+
+                <div>
+
+                    <label>Stock</label>
+
+                    <input
+                        name="stock"
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value="{float(product["stock"]):.2f}"
+                    >
+
+                </div>
+
+
+                <div>
+
+                    <label>Stock mínimo</label>
+
+                    <input
+                        name="min_stock"
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value="{float(product["min_stock"]):.2f}"
+                    >
+
+                </div>
+
+            </div>
+
+
+            <br>
+
+
+            <button type="submit">
+                💾 Guardar cambios
+            </button>
+
+
+            <a
+                class="btn"
+                href="/modulo/inventario/Productos"
+                style="
+                    margin-left:8px;
+                "
+            >
+                Cancelar
+            </a>
+
+        </form>
 
     </div>
 
