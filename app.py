@@ -65,7 +65,20 @@ with engine.begin() as db:
             subtotal DECIMAL(12,2) NOT NULL
         )
     """))
-
+    db.execute(text("""
+        CREATE TABLE IF NOT EXISTS products (
+            id INTEGER PRIMARY KEY,
+            code VARCHAR(50) UNIQUE NOT NULL,
+            name VARCHAR(150) NOT NULL,
+            category VARCHAR(100),
+            unit VARCHAR(30) NOT NULL DEFAULT 'Unidad',
+            purchase_price DECIMAL(12,2) NOT NULL DEFAULT 0,
+            sale_price DECIMAL(12,2) NOT NULL DEFAULT 0,
+            stock DECIMAL(12,2) NOT NULL DEFAULT 0,
+            min_stock DECIMAL(12,2) NOT NULL DEFAULT 0,
+            active BOOLEAN NOT NULL DEFAULT TRUE
+        )
+    """))
     if not db.execute(
         text("SELECT id FROM users WHERE username='admin'")
     ).first():
@@ -1203,7 +1216,313 @@ def modulo(name, option=None):
         </div>
         """
     )
+# =========================================================
+# INVENTARIO - PRODUCTOS
+# =========================================================
 
+@app.route("/modulo/inventario/Productos", methods=["GET", "POST"])
+def productos():
+
+    if "user_id" not in session:
+        return redirect("/login")
+
+    msg = ""
+
+    if request.method == "POST":
+
+        accion = request.form.get("accion")
+
+        try:
+
+            with engine.begin() as db:
+
+                if accion == "crear":
+
+                    next_id = (
+                        db.execute(
+                            text(
+                                "SELECT COALESCE(MAX(id),0)+1 "
+                                "FROM products"
+                            )
+                        ).scalar()
+                        or 1
+                    )
+
+                    db.execute(
+                        text("""
+                            INSERT INTO products
+                            (
+                                id,
+                                code,
+                                name,
+                                category,
+                                unit,
+                                purchase_price,
+                                sale_price,
+                                stock,
+                                min_stock,
+                                active
+                            )
+                            VALUES
+                            (
+                                :id,
+                                :code,
+                                :name,
+                                :category,
+                                :unit,
+                                :purchase_price,
+                                :sale_price,
+                                :stock,
+                                :min_stock,
+                                TRUE
+                            )
+                        """),
+                        {
+                            "id": next_id,
+                            "code": request.form["code"].strip(),
+                            "name": request.form["name"].strip(),
+                            "category": request.form.get(
+                                "category", ""
+                            ).strip(),
+                            "unit": request.form.get(
+                                "unit", "Unidad"
+                            ).strip(),
+                            "purchase_price": float(
+                                request.form.get(
+                                    "purchase_price", 0
+                                ) or 0
+                            ),
+                            "sale_price": float(
+                                request.form.get(
+                                    "sale_price", 0
+                                ) or 0
+                            ),
+                            "stock": float(
+                                request.form.get(
+                                    "stock", 0
+                                ) or 0
+                            ),
+                            "min_stock": float(
+                                request.form.get(
+                                    "min_stock", 0
+                                ) or 0
+                            )
+                        }
+                    )
+
+                    msg = "Producto registrado correctamente."
+
+            if accion == "crear":
+                return redirect(
+                    "/modulo/inventario/Productos"
+                )
+
+        except Exception as e:
+
+            msg = f"Error al registrar producto: {e}"
+
+    with engine.begin() as db:
+
+        products = db.execute(
+            text("""
+                SELECT *
+                FROM products
+                WHERE active=TRUE
+                ORDER BY name
+            """)
+        ).mappings().all()
+
+    rows = ""
+
+    for p in products:
+
+        estado = (
+            "<span style='color:#dc2626;font-weight:bold'>"
+            "Stock bajo"
+            "</span>"
+            if float(p["stock"]) <= float(p["min_stock"])
+            else
+            "<span style='color:#16a34a;font-weight:bold'>"
+            "Normal"
+            "</span>"
+        )
+
+        rows += f"""
+        <tr>
+
+            <td>{p["code"]}</td>
+
+            <td>{p["name"]}</td>
+
+            <td>{p["category"] or ""}</td>
+
+            <td>{p["unit"]}</td>
+
+            <td>${float(p["purchase_price"]):,.2f}</td>
+
+            <td>${float(p["sale_price"]):,.2f}</td>
+
+            <td>{float(p["stock"]):,.2f}</td>
+
+            <td>{float(p["min_stock"]):,.2f}</td>
+
+            <td>{estado}</td>
+
+        </tr>
+        """
+
+    return shell(f"""
+
+    <h1>📦 Productos</h1>
+
+    <div class="card">
+
+        <h2>Nuevo producto</h2>
+
+        {(
+            f'<div class="success">{msg}</div>'
+            if msg
+            else ""
+        )}
+
+        <form method="post">
+
+            <input
+                type="hidden"
+                name="accion"
+                value="crear"
+            >
+
+            <div class="grid">
+
+                <div>
+                    <label>Código</label>
+                    <input
+                        name="code"
+                        placeholder="Código del producto"
+                        required
+                    >
+                </div>
+
+                <div>
+                    <label>Nombre</label>
+                    <input
+                        name="name"
+                        placeholder="Nombre del producto"
+                        required
+                    >
+                </div>
+
+                <div>
+                    <label>Categoría</label>
+                    <input
+                        name="category"
+                        placeholder="Categoría"
+                    >
+                </div>
+
+                <div>
+                    <label>Unidad</label>
+                    <input
+                        name="unit"
+                        value="Unidad"
+                        placeholder="Unidad"
+                    >
+                </div>
+
+                <div>
+                    <label>Precio de compra</label>
+                    <input
+                        name="purchase_price"
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value="0"
+                    >
+                </div>
+
+                <div>
+                    <label>Precio de venta</label>
+                    <input
+                        name="sale_price"
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value="0"
+                    >
+                </div>
+
+                <div>
+                    <label>Stock inicial</label>
+                    <input
+                        name="stock"
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value="0"
+                    >
+                </div>
+
+                <div>
+                    <label>Stock mínimo</label>
+                    <input
+                        name="min_stock"
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value="0"
+                    >
+                </div>
+
+            </div>
+
+            <br>
+
+            <button type="submit">
+                ➕ Guardar producto
+            </button>
+
+        </form>
+
+    </div>
+
+
+    <div class="card">
+
+        <h2>Productos registrados</h2>
+
+        <table>
+
+            <tr>
+                <th>Código</th>
+                <th>Producto</th>
+                <th>Categoría</th>
+                <th>Unidad</th>
+                <th>Compra</th>
+                <th>Venta</th>
+                <th>Stock</th>
+                <th>Mínimo</th>
+                <th>Estado</th>
+            </tr>
+
+            {rows}
+
+        </table>
+
+    </div>
+
+    <div class="card">
+
+        <a
+            class="btn"
+            href="/modulo/inventario"
+        >
+            ← Volver a Inventario
+        </a>
+
+    </div>
+
+    """)
 # =========================================================
 # USUARIOS
 # =========================================================
