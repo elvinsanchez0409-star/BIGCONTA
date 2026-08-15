@@ -1115,7 +1115,7 @@ def modulo(name, option):
                 Función disponible para continuar el desarrollo.
             </p>
 
-            <a href="/modulo/{name}"
+            <a href="/modulo/{name}/{option}"
                style="
                    display:inline-block;
                    padding:10px 18px;
