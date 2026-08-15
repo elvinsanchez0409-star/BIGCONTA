@@ -955,8 +955,9 @@ def ver_factura(invoice_id):
 # OTROS MÓDULOS
 # =========================================================
 
+@app.route("/modulo/<name>")
 @app.route("/modulo/<name>/<path:option>")
-def modulo(name, option):
+def modulo(name, option=None):
 
     modulos = {
 
