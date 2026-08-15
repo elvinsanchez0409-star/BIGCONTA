@@ -1718,9 +1718,7 @@ def editar_producto(product_id):
     if "user_id" not in session:
         return redirect("/login")
 
-
     error = ""
-
 
     if request.method == "POST":
 
@@ -1745,13 +1743,13 @@ def editar_producto(product_id):
                     {
                         "id": product_id,
 
-                        "code": request.form[
-                            "code"
-                        ].strip(),
+                        "code": request.form.get(
+                            "code", ""
+                        ).strip(),
 
-                        "name": request.form[
-                            "name"
-                        ].strip(),
+                        "name": request.form.get(
+                            "name", ""
+                        ).strip(),
 
                         "category": request.form.get(
                             "category", ""
@@ -1791,11 +1789,9 @@ def editar_producto(product_id):
                 "/modulo/inventario/Productos"
             )
 
-
         except Exception as e:
 
             error = str(e)
-
 
     with engine.begin() as db:
 
@@ -1810,13 +1806,11 @@ def editar_producto(product_id):
             }
         ).mappings().first()
 
-
     if not product:
 
         return redirect(
             "/modulo/inventario/Productos"
         )
-
 
     error_html = ""
 
@@ -1828,11 +1822,9 @@ def editar_producto(product_id):
         </div>
         """
 
-
     return shell(f"""
 
     <h1>✏️ Editar producto</h1>
-
 
     <div class="card">
 
@@ -1841,7 +1833,6 @@ def editar_producto(product_id):
         </h2>
 
         {error_html}
-
 
         <form method="post">
 
@@ -1859,7 +1850,6 @@ def editar_producto(product_id):
 
                 </div>
 
-
                 <div>
 
                     <label>Nombre</label>
@@ -1872,7 +1862,6 @@ def editar_producto(product_id):
 
                 </div>
 
-
                 <div>
 
                     <label>Categoría</label>
@@ -1884,7 +1873,6 @@ def editar_producto(product_id):
 
                 </div>
 
-
                 <div>
 
                     <label>Unidad</label>
@@ -1895,7 +1883,6 @@ def editar_producto(product_id):
                     >
 
                 </div>
-
 
                 <div>
 
@@ -1911,7 +1898,6 @@ def editar_producto(product_id):
 
                 </div>
 
-
                 <div>
 
                     <label>Precio de venta</label>
@@ -1926,7 +1912,6 @@ def editar_producto(product_id):
 
                 </div>
 
-
                 <div>
 
                     <label>Stock</label>
@@ -1940,7 +1925,6 @@ def editar_producto(product_id):
                     >
 
                 </div>
-
 
                 <div>
 
@@ -1958,14 +1942,11 @@ def editar_producto(product_id):
 
             </div>
 
-
             <br>
-
 
             <button type="submit">
                 💾 Guardar cambios
             </button>
-
 
             <a
                 class="btn"
@@ -1982,6 +1963,9 @@ def editar_producto(product_id):
     </div>
 
     """)
+# =========================================================
+# USUARIOS
+# =========================================================
 # =========================================================
 # USUARIOS
 # =========================================================
