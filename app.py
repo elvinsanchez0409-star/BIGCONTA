@@ -959,8 +959,7 @@ def ver_factura(invoice_id):
 @app.route("/modulo/<name>/<path:option>")
 def modulo(name, option=None):
 
-    modulos = {
-
+    modules = {
         "contabilidad": {
             "titulo": "Contabilidad",
             "icono": "📚",
@@ -1098,9 +1097,53 @@ def modulo(name, option=None):
     if not modulo_actual:
         return redirect("/")
 
+    # Si se seleccionó una opción, mostrarla
+    if option:
+        opcion_encontrada = None
+
+        for item in modulo_actual["opciones"]:
+            if item == option:
+                opcion_encontrada = item
+                break
+
+        if not opcion_encontrada:
+            return redirect(f"/modulo/{name}")
+
+        return shell(
+            f"""
+            <h1>
+                {modulo_actual["icono"]}
+                {opcion_encontrada}
+            </h1>
+
+            <div class="card">
+
+                <h2>{opcion_encontrada}</h2>
+
+                <p>
+                    Módulo de <strong>{modulo_actual["titulo"]}</strong>
+                </p>
+
+                <p>
+                    Esta sección está activa y lista
+                    para continuar con el desarrollo.
+                </p>
+
+                <a
+                    class="btn"
+                    href="/modulo/{name}"
+                >
+                    ← Volver a {modulo_actual["titulo"]}
+                </a>
+
+            </div>
+            """
+        )
+
+    # Mostrar las opciones del módulo
     botones = ""
 
-    for option in modulo_actual["opciones"]:
+    for option_item in modulo_actual["opciones"]:
         botones += f"""
         <div class="card" style="
             margin:0;
@@ -1110,26 +1153,29 @@ def modulo(name, option=None):
         onmouseover="this.style.transform='translateY(-3px)'"
         onmouseout="this.style.transform='translateY(0)'">
 
-            <h3>{option}</h3>
+            <h3>{option_item}</h3>
 
             <p style="color:#6b7280;">
-                Función disponible para continuar el desarrollo.
+                Selecciona esta opción para ingresar.
             </p>
 
-            <a href="/modulo/{name}/{option}"
-               style="
-                   display:inline-block;
-                   padding:10px 18px;
-                   background:#111827;
-                   color:white;
-                   text-decoration:none;
-                   border-radius:6px;
-               ">
+            <a
+                href="/modulo/{name}/{option_item}"
+                style="
+                    display:inline-block;
+                    padding:10px 18px;
+                    background:#111827;
+                    color:white;
+                    text-decoration:none;
+                    border-radius:6px;
+                "
+            >
                 Abrir
             </a>
 
         </div>
         """
+
     return shell(
         f"""
         <h1>
@@ -1157,7 +1203,6 @@ def modulo(name, option=None):
         </div>
         """
     )
-
 
 # =========================================================
 # USUARIOS
