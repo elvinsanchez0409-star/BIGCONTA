@@ -955,8 +955,8 @@ def ver_factura(invoice_id):
 # OTROS MÓDULOS
 # =========================================================
 
-@app.route("/modulo/<name>")
-def modulo(name):
+@app.route("/modulo/<name>/<path:option>")
+def modulo(name, option):
 
     modulos = {
 
@@ -1099,7 +1099,7 @@ def modulo(name):
 
     botones = ""
 
-    for option in modulo_actual["opciones"]:
+        for option in modulo_actual["opciones"]:
         botones += f"""
         <div class="card" style="
             margin:0;
