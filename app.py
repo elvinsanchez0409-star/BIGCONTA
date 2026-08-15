@@ -1092,7 +1092,7 @@ def modulo(name, option=None):
         }
     }
 
-    modulo_actual = modulos.get(name)
+    modulo_actual = modules.get(name)
 
     if not modulo_actual:
         return redirect("/")
