@@ -970,7 +970,7 @@ def ver_factura(invoice_id):
 # =========================================================
 
 @app.route("/modulo/inventario/Entradas", methods=["GET", "POST"])
-def entradas_inventario_nueva():
+def entradas_inventario():
 
     if "user_id" not in session:
         return redirect("/login")
