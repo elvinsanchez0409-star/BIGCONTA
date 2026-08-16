@@ -1651,6 +1651,373 @@ def salidas_inventario():
     </div>
     """)
 # ============================================================
+# INVENTARIO - AJUSTES
+# ============================================================
+
+@app.route("/modulo/inventario/Ajustes de inventario", methods=["GET", "POST"])
+def ajustes_inventario():
+
+    if "user_id" not in session:
+        return redirect("/login")
+
+    msg = ""
+    error = ""
+
+    try:
+        with engine.begin() as db:
+
+            db.execute(text("""
+                CREATE TABLE IF NOT EXISTS inventory_adjustments (
+                    id INTEGER PRIMARY KEY,
+                    product_id INTEGER NOT NULL,
+                    adjustment_date VARCHAR(20) NOT NULL,
+                    stock_before DECIMAL(12,2) NOT NULL,
+                    stock_after DECIMAL(12,2) NOT NULL,
+                    difference DECIMAL(12,2) NOT NULL,
+                    reason VARCHAR(150),
+                    notes VARCHAR(500),
+                    created_at VARCHAR(30)
+                )
+            """))
+
+            if request.method == "POST":
+
+                product_id = int(
+                    request.form.get("product_id", 0)
+                )
+
+                stock_after = float(
+                    request.form.get("stock_after", 0) or 0
+                )
+
+                adjustment_date = request.form.get(
+                    "adjustment_date",
+                    datetime.now().strftime("%Y-%m-%d")
+                )
+
+                reason = request.form.get(
+                    "reason", ""
+                ).strip()
+
+                notes = request.form.get(
+                    "notes", ""
+                ).strip()
+
+                if stock_after < 0:
+                    raise ValueError(
+                        "El stock físico no puede ser negativo."
+                    )
+
+                product = db.execute(
+                    text("""
+                        SELECT
+                            id,
+                            code,
+                            name,
+                            unit,
+                            COALESCE(stock, 0) AS stock
+                        FROM products
+                        WHERE id=:id
+                          AND active=TRUE
+                    """),
+                    {"id": product_id}
+                ).mappings().first()
+
+                if not product:
+                    raise ValueError(
+                        "El producto seleccionado no existe o está inactivo."
+                    )
+
+                stock_before = float(
+                    product["stock"] or 0
+                )
+
+                difference = stock_after - stock_before
+
+                next_id = (
+                    db.execute(
+                        text(
+                            "SELECT COALESCE(MAX(id),0)+1 "
+                            "FROM inventory_adjustments"
+                        )
+                    ).scalar()
+                    or 1
+                )
+
+                db.execute(
+                    text("""
+                        INSERT INTO inventory_adjustments
+                        (
+                            id,
+                            product_id,
+                            adjustment_date,
+                            stock_before,
+                            stock_after,
+                            difference,
+                            reason,
+                            notes,
+                            created_at
+                        )
+                        VALUES
+                        (
+                            :id,
+                            :product_id,
+                            :adjustment_date,
+                            :stock_before,
+                            :stock_after,
+                            :difference,
+                            :reason,
+                            :notes,
+                            :created_at
+                        )
+                    """),
+                    {
+                        "id": next_id,
+                        "product_id": product_id,
+                        "adjustment_date": adjustment_date,
+                        "stock_before": stock_before,
+                        "stock_after": stock_after,
+                        "difference": difference,
+                        "reason": reason,
+                        "notes": notes,
+                        "created_at": datetime.now().strftime(
+                            "%Y-%m-%d %H:%M:%S"
+                        )
+                    }
+                )
+
+                db.execute(
+                    text("""
+                        UPDATE products
+                        SET stock=:stock
+                        WHERE id=:id
+                    """),
+                    {
+                        "stock": stock_after,
+                        "id": product_id
+                    }
+                )
+
+                msg = (
+                    "Ajuste registrado correctamente. "
+                    f"{product['name']}: "
+                    f"{stock_before:,.2f} → "
+                    f"{stock_after:,.2f} {product['unit']}."
+                )
+
+    except Exception as e:
+        error = str(e)
+
+    with engine.begin() as db:
+
+        products = db.execute(
+            text("""
+                SELECT
+                    id,
+                    code,
+                    name,
+                    unit,
+                    COALESCE(stock, 0) AS stock
+                FROM products
+                WHERE active=TRUE
+                ORDER BY name
+            """)
+        ).mappings().all()
+
+        adjustments = db.execute(
+            text("""
+                SELECT
+                    a.adjustment_date,
+                    p.code,
+                    p.name,
+                    p.unit,
+                    a.stock_before,
+                    a.stock_after,
+                    a.difference,
+                    a.reason,
+                    a.notes
+                FROM inventory_adjustments a
+                INNER JOIN products p
+                    ON p.id = a.product_id
+                ORDER BY a.id DESC
+                LIMIT 50
+            """)
+        ).mappings().all()
+
+    product_options = ""
+
+    for p in products:
+
+        product_options += f"""
+        <option value="{p['id']}">
+            {p['code']} - {p['name']}
+            (Stock actual: {float(p['stock'] or 0):,.2f} {p['unit']})
+        </option>
+        """
+
+    rows = ""
+
+    for a in adjustments:
+
+        diferencia = float(a["difference"] or 0)
+
+        rows += f"""
+        <tr>
+            <td>{a['adjustment_date']}</td>
+            <td>{a['code']}</td>
+            <td><strong>{a['name']}</strong></td>
+            <td>{float(a['stock_before']):,.2f} {a['unit']}</td>
+            <td>{float(a['stock_after']):,.2f} {a['unit']}</td>
+            <td>{diferencia:+,.2f}</td>
+            <td>{a['reason'] or ""}</td>
+            <td>{a['notes'] or ""}</td>
+        </tr>
+        """
+
+    mensaje_html = ""
+
+    if msg:
+        mensaje_html += f"""
+        <div class="success">
+            {msg}
+        </div>
+        """
+
+    if error:
+        mensaje_html += f"""
+        <div class="warning">
+            Error: {error}
+        </div>
+        """
+
+    return shell(f"""
+    <h1>📦 Ajustes de inventario</h1>
+
+    <div class="card">
+
+        <h2>Registrar ajuste de inventario</h2>
+
+        {mensaje_html}
+
+        <p>
+            Utiliza esta opción cuando el stock físico contado
+            no coincide con el stock registrado en el sistema.
+        </p>
+
+        <form method="post">
+
+            <div class="grid">
+
+                <div>
+                    <label>Producto</label>
+
+                    <select name="product_id" required>
+
+                        <option value="">
+                            Selecciona un producto
+                        </option>
+
+                        {product_options}
+
+                    </select>
+                </div>
+
+                <div>
+                    <label>Fecha</label>
+
+                    <input
+                        name="adjustment_date"
+                        type="date"
+                        value="{datetime.now().strftime('%Y-%m-%d')}"
+                        required
+                    >
+                </div>
+
+                <div>
+                    <label>Stock físico contado</label>
+
+                    <input
+                        name="stock_after"
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value="0"
+                        required
+                    >
+                </div>
+
+                <div>
+                    <label>Motivo</label>
+
+                    <input
+                        name="reason"
+                        placeholder="Conteo físico, diferencia, daño, pérdida, etc."
+                    >
+                </div>
+
+                <div>
+                    <label>Observación</label>
+
+                    <input
+                        name="notes"
+                        placeholder="Observación"
+                    >
+                </div>
+
+            </div>
+
+            <br>
+
+            <button type="submit">
+                ⚖️ Registrar ajuste
+            </button>
+
+        </form>
+
+    </div>
+
+    <div class="card">
+
+        <h2>Últimos ajustes</h2>
+
+        <div style="overflow-x:auto;">
+
+            <table>
+
+                <tr>
+                    <th>Fecha</th>
+                    <th>Código</th>
+                    <th>Producto</th>
+                    <th>Stock anterior</th>
+                    <th>Stock nuevo</th>
+                    <th>Diferencia</th>
+                    <th>Motivo</th>
+                    <th>Observación</th>
+                </tr>
+
+                {rows}
+
+            </table>
+
+        </div>
+
+    </div>
+
+    <div class="card">
+
+        <a
+            class="btn"
+            href="/modulo/inventario"
+        >
+            ← Volver a Inventario
+        </a>
+
+    </div>
+    """)
+
+
+
+# ============================================================
 # OTROS MÓDULOS
 # ============================================================
 
