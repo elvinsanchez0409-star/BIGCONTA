@@ -964,351 +964,7 @@ def ver_factura(invoice_id):
     """)
 
 
-# =========================================================
-# INVENTARIO - ENTRADAS
-# =========================================================
 
-@app.route("/modulo/inventario/Entradas", methods=["GET", "POST"])
-def entradas_inventario():
-
-    if "user_id" not in session:
-        return redirect("/login")
-
-    msg = ""
-    error = ""
-
-    try:
-        with engine.begin() as db:
-
-            db.execute(text("""
-                CREATE TABLE IF NOT EXISTS inventory_entries (
-                    id INTEGER PRIMARY KEY,
-                    product_id INTEGER NOT NULL,
-                    entry_date VARCHAR(20) NOT NULL,
-                    quantity DECIMAL(12,2) NOT NULL,
-                    unit_cost DECIMAL(12,2) NOT NULL DEFAULT 0,
-                    reference VARCHAR(100),
-                    notes VARCHAR(500),
-                    created_at VARCHAR(30)
-                )
-            """))
-
-            if request.method == "POST":
-
-                product_id = int(request.form["product_id"])
-                quantity = float(
-                    request.form.get("quantity", 0) or 0
-                )
-                unit_cost = float(
-                    request.form.get("unit_cost", 0) or 0
-                )
-
-                entry_date = request.form.get(
-                    "entry_date",
-                    datetime.now().strftime("%Y-%m-%d")
-                )
-
-                reference = request.form.get(
-                    "reference", ""
-                ).strip()
-
-                notes = request.form.get(
-                    "notes", ""
-                ).strip()
-
-                if quantity <= 0:
-                    raise ValueError(
-                        "La cantidad debe ser mayor que cero."
-                    )
-
-                if unit_cost < 0:
-                    raise ValueError(
-                        "El costo unitario no puede ser negativo."
-                    )
-
-                product = db.execute(
-                    text("""
-                        SELECT id, name, code
-                        FROM products
-                        WHERE id=:id
-                          AND active=TRUE
-                    """),
-                    {"id": product_id}
-                ).mappings().first()
-
-                if not product:
-                    raise ValueError(
-                        "El producto seleccionado no existe o está inactivo."
-                    )
-
-                next_id = (
-                    db.execute(
-                        text(
-                            "SELECT COALESCE(MAX(id),0)+1 "
-                            "FROM inventory_entries"
-                        )
-                    ).scalar()
-                    or 1
-                )
-
-                db.execute(
-                    text("""
-                        INSERT INTO inventory_entries
-                        (
-                            id,
-                            product_id,
-                            entry_date,
-                            quantity,
-                            unit_cost,
-                            reference,
-                            notes,
-                            created_at
-                        )
-                        VALUES
-                        (
-                            :id,
-                            :product_id,
-                            :entry_date,
-                            :quantity,
-                            :unit_cost,
-                            :reference,
-                            :notes,
-                            :created_at
-                        )
-                    """),
-                    {
-                        "id": next_id,
-                        "product_id": product_id,
-                        "entry_date": entry_date,
-                        "quantity": quantity,
-                        "unit_cost": unit_cost,
-                        "reference": reference,
-                        "notes": notes,
-                        "created_at": datetime.now().strftime(
-                            "%Y-%m-%d %H:%M:%S"
-                        )
-                    }
-                )
-
-                db.execute(
-                    text("""
-                        UPDATE products
-                        SET stock = stock + :quantity
-                        WHERE id=:id
-                    """),
-                    {
-                        "quantity": quantity,
-                        "id": product_id
-                    }
-                )
-
-                msg = (
-                    "Entrada registrada correctamente. "
-                    f"Se agregaron {quantity:,.2f} unidades "
-                    f"de {product['name']} al inventario."
-                )
-
-    except Exception as e:
-        error = str(e)
-
-    with engine.begin() as db:
-
-        products = db.execute(
-            text("""
-                SELECT id, code, name, unit
-                FROM products
-                WHERE active=TRUE
-                ORDER BY name
-            """)
-        ).mappings().all()
-
-        entries = db.execute(
-            text("""
-                SELECT
-                    e.entry_date,
-                    p.code,
-                    p.name,
-                    p.unit,
-                    e.quantity,
-                    e.unit_cost,
-                    e.reference,
-                    e.notes
-                FROM inventory_entries e
-                INNER JOIN products p
-                    ON p.id = e.product_id
-                ORDER BY e.id DESC
-                LIMIT 50
-            """)
-        ).mappings().all()
-
-    product_options = ""
-
-    for p in products:
-        product_options += f"""
-        <option value="{p['id']}">
-            {p['code']} - {p['name']}
-        </option>
-        """
-
-    rows = ""
-
-    for e in entries:
-        rows += f"""
-        <tr>
-            <td>{e['entry_date']}</td>
-            <td>{e['code']}</td>
-            <td><strong>{e['name']}</strong></td>
-            <td>{e['quantity']:,.2f} {e['unit']}</td>
-            <td>${float(e['unit_cost']):,.2f}</td>
-            <td>{e['reference'] or ""}</td>
-            <td>{e['notes'] or ""}</td>
-        </tr>
-        """
-
-    mensaje_html = ""
-
-    if msg:
-        mensaje_html += f"""
-        <div class="success">
-            {msg}
-        </div>
-        """
-
-    if error:
-        mensaje_html += f"""
-        <div class="warning">
-            Error: {error}
-        </div>
-        """
-
-    return shell(f"""
-    <h1>📦 Entradas de inventario</h1>
-
-    <div class="card">
-
-        <h2>Registrar entrada</h2>
-
-        {mensaje_html}
-
-        <form method="post">
-
-            <div class="grid">
-
-                <div>
-                    <label>Producto</label>
-
-                    <select name="product_id" required>
-                        <option value="">
-                            Selecciona un producto
-                        </option>
-
-                        {product_options}
-                    </select>
-                </div>
-
-                <div>
-                    <label>Fecha</label>
-
-                    <input
-                        name="entry_date"
-                        type="date"
-                        value="{datetime.now().strftime('%Y-%m-%d')}"
-                        required
-                    >
-                </div>
-
-                <div>
-                    <label>Cantidad</label>
-
-                    <input
-                        name="quantity"
-                        type="number"
-                        step="0.01"
-                        min="0.01"
-                        value="1"
-                        required
-                    >
-                </div>
-
-                <div>
-                    <label>Costo unitario</label>
-
-                    <input
-                        name="unit_cost"
-                        type="number"
-                        step="0.01"
-                        min="0"
-                        value="0"
-                    >
-                </div>
-
-                <div>
-                    <label>Referencia</label>
-
-                    <input
-                        name="reference"
-                        placeholder="Factura, compra, guía, etc."
-                    >
-                </div>
-
-                <div>
-                    <label>Observación</label>
-
-                    <input
-                        name="notes"
-                        placeholder="Observación"
-                    >
-                </div>
-
-            </div>
-
-            <br>
-
-            <button type="submit">
-                ➕ Registrar entrada
-            </button>
-
-        </form>
-
-    </div>
-
-    <div class="card">
-
-        <h2>Últimas entradas</h2>
-
-        <div style="overflow-x:auto;">
-
-            <table>
-
-                <tr>
-                    <th>Fecha</th>
-                    <th>Código</th>
-                    <th>Producto</th>
-                    <th>Cantidad</th>
-                    <th>Costo</th>
-                    <th>Referencia</th>
-                    <th>Observación</th>
-                </tr>
-
-                {rows}
-
-            </table>
-
-        </div>
-
-    </div>
-
-    <div class="card">
-
-        <a
-            class="btn"
-            href="/modulo/inventario"
-        >
-            ← Volver a Inventario
-        </a>
-
-    </div>
-    """)
     # =========================================================
 # INVENTARIO - ENTRADAS
 # =========================================================
@@ -1656,9 +1312,347 @@ def entradas_inventario_nueva():
 
     </div>
     """)
+    
 # =========================================================
+# INVENTARIO - SALIDAS
+# =========================================================
+
+@app.route("/modulo/inventario/Salidas", methods=["GET", "POST"])
+def salidas_inventario():
+
+    if "user_id" not in session:
+        return redirect("/login")
+
+    msg = ""
+    error = ""
+
+    try:
+        with engine.begin() as db:
+
+            db.execute(text("""
+                CREATE TABLE IF NOT EXISTS inventory_exits (
+                    id INTEGER PRIMARY KEY,
+                    product_id INTEGER NOT NULL,
+                    exit_date VARCHAR(20) NOT NULL,
+                    quantity DECIMAL(12,2) NOT NULL,
+                    reference VARCHAR(100),
+                    notes VARCHAR(500),
+                    created_at VARCHAR(30)
+                )
+            """))
+
+            if request.method == "POST":
+
+                product_id = int(
+                    request.form.get("product_id", 0)
+                )
+
+                quantity = float(
+                    request.form.get("quantity", 0) or 0
+                )
+
+                exit_date = request.form.get(
+                    "exit_date",
+                    datetime.now().strftime("%Y-%m-%d")
+                )
+
+                reference = request.form.get(
+                    "reference", ""
+                ).strip()
+
+                notes = request.form.get(
+                    "notes", ""
+                ).strip()
+
+                if quantity <= 0:
+                    raise ValueError(
+                        "La cantidad debe ser mayor que cero."
+                    )
+
+                product = db.execute(
+                    text("""
+                        SELECT id, code, name, unit,
+                               COALESCE(stock, 0) AS stock
+                        FROM products
+                        WHERE id=:id
+                          AND active=TRUE
+                    """),
+                    {"id": product_id}
+                ).mappings().first()
+
+                if not product:
+                    raise ValueError(
+                        "El producto seleccionado no existe o está inactivo."
+                    )
+
+                stock_actual = float(product["stock"] or 0)
+
+                if quantity > stock_actual:
+                    raise ValueError(
+                        f"Stock insuficiente. "
+                        f"Disponible: {stock_actual:,.2f} "
+                        f"{product['unit']}."
+                    )
+
+                next_id = (
+                    db.execute(
+                        text(
+                            "SELECT COALESCE(MAX(id),0)+1 "
+                            "FROM inventory_exits"
+                        )
+                    ).scalar()
+                    or 1
+                )
+
+                db.execute(
+                    text("""
+                        INSERT INTO inventory_exits
+                        (
+                            id,
+                            product_id,
+                            exit_date,
+                            quantity,
+                            reference,
+                            notes,
+                            created_at
+                        )
+                        VALUES
+                        (
+                            :id,
+                            :product_id,
+                            :exit_date,
+                            :quantity,
+                            :reference,
+                            :notes,
+                            :created_at
+                        )
+                    """),
+                    {
+                        "id": next_id,
+                        "product_id": product_id,
+                        "exit_date": exit_date,
+                        "quantity": quantity,
+                        "reference": reference,
+                        "notes": notes,
+                        "created_at": datetime.now().strftime(
+                            "%Y-%m-%d %H:%M:%S"
+                        )
+                    }
+                )
+
+                db.execute(
+                    text("""
+                        UPDATE products
+                        SET stock = COALESCE(stock, 0) - :quantity
+                        WHERE id=:id
+                    """),
+                    {
+                        "quantity": quantity,
+                        "id": product_id
+                    }
+                )
+
+                msg = (
+                    "Salida registrada correctamente. "
+                    f"Se retiraron {quantity:,.2f} unidades "
+                    f"de {product['name']}."
+                )
+
+    except Exception as e:
+        error = str(e)
+
+    with engine.begin() as db:
+
+        products = db.execute(
+            text("""
+                SELECT
+                    id,
+                    code,
+                    name,
+                    unit,
+                    COALESCE(stock, 0) AS stock
+                FROM products
+                WHERE active=TRUE
+                ORDER BY name
+            """)
+        ).mappings().all()
+
+        exits = db.execute(
+            text("""
+                SELECT
+                    e.exit_date,
+                    p.code,
+                    p.name,
+                    p.unit,
+                    e.quantity,
+                    e.reference,
+                    e.notes
+                FROM inventory_exits e
+                INNER JOIN products p
+                    ON p.id = e.product_id
+                ORDER BY e.id DESC
+                LIMIT 50
+            """)
+        ).mappings().all()
+
+    product_options = ""
+
+    for p in products:
+        product_options += f"""
+        <option value="{p['id']}">
+            {p['code']} - {p['name']}
+            (Stock: {float(p['stock'] or 0):,.2f} {p['unit']})
+        </option>
+        """
+
+    rows = ""
+
+    for e in exits:
+        rows += f"""
+        <tr>
+            <td>{e['exit_date']}</td>
+            <td>{e['code']}</td>
+            <td><strong>{e['name']}</strong></td>
+            <td>{e['quantity']:,.2f} {e['unit']}</td>
+            <td>{e['reference'] or ""}</td>
+            <td>{e['notes'] or ""}</td>
+        </tr>
+        """
+
+    mensaje_html = ""
+
+    if msg:
+        mensaje_html += f"""
+        <div class="success">
+            {msg}
+        </div>
+        """
+
+    if error:
+        mensaje_html += f"""
+        <div class="warning">
+            Error: {error}
+        </div>
+        """
+
+    return shell(f"""
+    <h1>📤 Salidas de inventario</h1>
+
+    <div class="card">
+
+        <h2>Registrar salida</h2>
+
+        {mensaje_html}
+
+        <form method="post">
+
+            <div class="grid">
+
+                <div>
+                    <label>Producto</label>
+
+                    <select name="product_id" required>
+                        <option value="">
+                            Selecciona un producto
+                        </option>
+
+                        {product_options}
+                    </select>
+                </div>
+
+                <div>
+                    <label>Fecha</label>
+
+                    <input
+                        name="exit_date"
+                        type="date"
+                        value="{datetime.now().strftime('%Y-%m-%d')}"
+                        required
+                    >
+                </div>
+
+                <div>
+                    <label>Cantidad</label>
+
+                    <input
+                        name="quantity"
+                        type="number"
+                        step="0.01"
+                        min="0.01"
+                        value="1"
+                        required
+                    >
+                </div>
+
+                <div>
+                    <label>Referencia</label>
+
+                    <input
+                        name="reference"
+                        placeholder="Factura, venta, guía, etc."
+                    >
+                </div>
+
+                <div>
+                    <label>Observación</label>
+
+                    <input
+                        name="notes"
+                        placeholder="Observación"
+                    >
+                </div>
+
+            </div>
+
+            <br>
+
+            <button type="submit">
+                📤 Registrar salida
+            </button>
+
+        </form>
+
+    </div>
+
+    <div class="card">
+
+        <h2>Últimas salidas</h2>
+
+        <div style="overflow-x:auto;">
+
+            <table>
+
+                <tr>
+                    <th>Fecha</th>
+                    <th>Código</th>
+                    <th>Producto</th>
+                    <th>Cantidad</th>
+                    <th>Referencia</th>
+                    <th>Observación</th>
+                </tr>
+
+                {rows}
+
+            </table>
+
+        </div>
+
+    </div>
+
+    <div class="card">
+
+        <a
+            class="btn"
+            href="/modulo/inventario"
+        >
+            ← Volver a Inventario
+        </a>
+
+    </div>
+    """)
+# ============================================================
 # OTROS MÓDULOS
-# =========================================================
+# ============================================================
 
 @app.route("/modulo/<name>")
 @app.route("/modulo/<name>/<path:option>")
