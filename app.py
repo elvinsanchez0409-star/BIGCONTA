@@ -1314,7 +1314,7 @@ def entradas_inventario():
 # =========================================================
 
 @app.route("/modulo/inventario/Entradas", methods=["GET", "POST"])
-def entradas_inventario():
+def entradas_inventario_nueva():
 
     if "user_id" not in session:
         return redirect("/login")
